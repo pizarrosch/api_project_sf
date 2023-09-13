@@ -1,7 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import {IComment} from "./types";
 import {readFile} from "fs/promises";
-import {stringify} from "querystring";
 
 const loadComments = async (): Promise<IComment[]> => {
     const rawData = await readFile("mock-comment.json", "binary");
