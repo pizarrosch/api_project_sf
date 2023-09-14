@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import {readFile, writeFile} from "fs/promises";
 import { v4 as uuidv4 } from 'uuid';
-import {CommentCreatePayload} from "./types";
+import {CommentCreatePayload, IComment} from "./types";
 
 const app = express();
 const jsonMiddleware = express.json();
@@ -9,13 +9,32 @@ app.use(jsonMiddleware);
 
 const PATH = '/api/comments';
 
-const loadComments = async (): Promise<CommentCreatePayload[]> => {
+const loadComments = async (): Promise<IComment[]> => {
     const rawData = await readFile("mock-comment.json", "binary");
     return JSON.parse(rawData);
 }
 
 const saveComments = async (data: CommentCreatePayload[]): Promise<void> => {
     await writeFile("mock-comment.json", JSON.stringify(data));
+}
+
+const compareValues = (target: string, compare: string): boolean => {
+    return target.toLowerCase() === compare.toLowerCase();
+}
+
+export const checkCommentUniq = (payload: CommentCreatePayload, comments: IComment[]): boolean => {
+    const checkByEmail = comments.find(({ email }) => compareValues(payload.email, email));
+
+    if (!checkByEmail) {
+        return true;
+    }
+
+    const { body, name, postId } = checkByEmail;
+    return !(
+        compareValues(payload.body, body) &&
+        compareValues(payload.name, name) &&
+        compareValues(payload.postId.toString(), postId.toString())
+    );
 }
 
 app.get(PATH, async (req: Request, res: Response) => {
@@ -45,7 +64,15 @@ app.post(PATH, async (req: Request<{}, {}, CommentCreatePayload>, res: Response)
     const dataObj = req.body;
     const concatObj = Object.assign({}, idObj, dataObj);
 
-    const comments: CommentCreatePayload[] = await loadComments();
+    const comments: IComment[] = await loadComments();
+    const isUniq = checkCommentUniq(req.body, comments);
+
+    if (!isUniq) {
+        res.status(422);
+        res.send("Comment with the same fields already exists");
+        return;
+    }
+
     comments.push(concatObj);
     await saveComments(comments)
 
