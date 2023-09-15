@@ -144,6 +144,36 @@ app.post(PATH, async (req: Request<{}, {}, CommentCreatePayload>, res: Response)
     res.send(`Comment id:${id} has been added!`);
 });
 
+app.patch(PATH, async (req: Request<{}, {}, Partial<IComment>>, res: Response) => {
+    const comments: IComment[] = await loadComments();
+    const targetCommentIndex = comments.findIndex(({id}) => id === req.body.id);
+
+    if (targetCommentIndex > -1) {
+        comments[targetCommentIndex] = {...comments[targetCommentIndex], ...req.body};
+        await saveComments(comments);
+        res.status(200);
+        res.send(comments[targetCommentIndex]);
+        return;
+    }
+
+    const newComment = req.body as CommentCreatePayload;
+    const validationResult = validateComment(newComment);
+
+    if (validationResult) {
+        res.status(400);
+        res.send(validationResult);
+        return;
+    }
+
+    const id = uuidv4();
+    const commentToCreate = { ...newComment, id };
+    comments.push(commentToCreate);
+    await saveComments(comments);
+
+    res.status(201);
+    res.send(commentToCreate);
+})
+
 app.listen(3002, () => {
     console.log(`Server running on port 3002`);
 });
