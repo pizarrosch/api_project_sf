@@ -37,10 +37,32 @@ export const checkCommentUniq = (payload: CommentCreatePayload, comments: IComme
     );
 }
 
-app.get(PATH, async (req: Request, res: Response) => {
+app.get(`api/comments/`, async (req: Request, res: Response) => {
     const comments: CommentCreatePayload[] = await loadComments();
     res.setHeader('Content-Type', 'application/json');
-    res.send(comments);
+
+    if (req.params.id) {
+        res.send(comments);
+    } else {
+        res.status(404);
+        res.send(`Comment with id <${req.params.id}> is not found`)
+    }
+});
+
+// GET function to get a comment by id
+app.get(`${PATH}/:id`, async (req: Request<{id: string}>, res: Response) => {
+    const comments: IComment[] = await loadComments();
+    const id = req.params.id;
+
+    const targetComment: IComment | undefined = comments.find((comment: IComment) => id === comment.id.toString())
+
+    if (!targetComment) {
+        res.status(404);
+        res.send(`Comment with id <${req.params.id}> is not found`)
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.send(targetComment);
 });
 
 const validateComment = (body: CommentCreatePayload | null) => {
