@@ -18,23 +18,28 @@ const saveComments = async (data: CommentCreatePayload[]): Promise<void> => {
     await writeFile("mock-comment.json", JSON.stringify(data));
 }
 
-const compareValues = (target: string, compare: string): boolean => {
-    return target.toLowerCase() === compare.toLowerCase();
+const compareValues = (target: string, compare: string) => {
+    if (target) {
+        return target.toLowerCase() === compare.toLowerCase();
+    }
+    return null
 }
 
-export const checkCommentUniq = (payload: CommentCreatePayload, comments: IComment[]): boolean => {
-    const checkByEmail = comments.find(({ email }) => compareValues(payload.email, email));
+export const checkCommentUniq = (payload: CommentCreatePayload, comments: IComment[]) => {
+    if (payload) {
+        const checkByEmail = comments.find(({ email }) => compareValues(payload.email, email));
 
-    if (!checkByEmail) {
-        return true;
+        if (!checkByEmail) {
+            return true;
+        }
+
+        const { body, name, postId } = checkByEmail;
+        return !(
+            compareValues(payload.body, body) &&
+            compareValues(payload.name, name) &&
+            compareValues(payload.postId.toString(), postId.toString())
+        );
     }
-
-    const { body, name, postId } = checkByEmail;
-    return !(
-        compareValues(payload.body, body) &&
-        compareValues(payload.name, name) &&
-        compareValues(payload.postId.toString(), postId.toString())
-    );
 }
 
 app.get(`api/comments/`, async (req: Request, res: Response) => {
@@ -65,10 +70,47 @@ app.get(`${PATH}/:id`, async (req: Request<{id: string}>, res: Response) => {
     res.send(targetComment);
 });
 
-const validateComment = (body: CommentCreatePayload | null) => {
-    if (!body) {
-        return 'No body found!';
+type CommentValidator = (comment: CommentCreatePayload) => string | null;
+
+const validateComment: CommentValidator = (body: CommentCreatePayload) => {
+    const FIELDS = ['name', 'body', 'postId', 'email'];
+
+    if (!body || !Object.keys(body).length) {
+        return 'Comment is absent or empty';
     }
+
+    let checkAllKeys = FIELDS.every((key) => body.hasOwnProperty(key));
+    const keyIndex = FIELDS.findIndex(index => !body.hasOwnProperty(index));
+
+    if (!checkAllKeys) {
+        return `This field <${FIELDS[keyIndex]}> is missing`
+    }
+
+    return null;
+
+//     another option is:
+
+// //     const requiredFields = new Set<keyof CommentCreatePayload>([
+// //         "name",
+// //         "email",
+// //         "body",
+// //         "postId"
+// //     ]);
+// //
+// //     let wrongFieldName;
+// //
+// //     requiredFields.forEach((fieldName) => {
+// //         if (!comment[fieldName]) {
+// //             wrongFieldName = fieldName;
+// //             return;
+// //         }
+// //     });
+// //
+// //     if (wrongFieldName) {
+// //         return `Field '${wrongFieldName}' is absent`;
+//     }
+// //
+// //     return null;
 }
 
 app.post(PATH, async (req: Request<{}, {}, CommentCreatePayload>, res: Response) => {
