@@ -14,8 +14,15 @@ const loadComments = async (): Promise<IComment[]> => {
     return JSON.parse(rawData);
 }
 
-const saveComments = async (data: CommentCreatePayload[]): Promise<void> => {
-    await writeFile("mock-comment.json", JSON.stringify(data));
+const saveComments = async (data: CommentCreatePayload[]): Promise<boolean> => {
+    try {
+        await writeFile("mock-comment.json", JSON.stringify(data));
+        return true;
+    }
+    catch(err) {
+        return false;
+    }
+
 }
 
 const compareValues = (target: string, compare: string) => {
@@ -138,7 +145,13 @@ app.post(PATH, async (req: Request<{}, {}, CommentCreatePayload>, res: Response)
     }
 
     comments.push(concatObj);
-    await saveComments(comments)
+    const saved =  await saveComments(comments)
+
+    if (!saved) {
+        res.status(500);
+        res.send("Server error. Comment has not been created");
+        return;
+    }
 
     res.status(201);
     res.send(`Comment id:${id} has been added!`);
