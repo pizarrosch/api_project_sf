@@ -1,8 +1,10 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import {readFile, writeFile} from "fs/promises";
 import { v4 as uuidv4 } from 'uuid';
-import {CommentCreatePayload, IComment} from "./types";
+import {CommentCreatePayload, IComment, ICommentEntity} from "../types";
+import {connection} from "../../index";
 
+export const commentsRouter = Router();
 const app = express();
 const jsonMiddleware = express.json();
 app.use(jsonMiddleware);
@@ -40,42 +42,37 @@ export const checkCommentUniq = (payload: CommentCreatePayload, comments: IComme
             return true;
         }
 
-        const { body, name, postId } = checkByEmail;
+        const { body, name, productId } = checkByEmail;
         return !(
             compareValues(payload.body, body) &&
             compareValues(payload.name, name) &&
-            compareValues(payload.postId.toString(), postId.toString())
+            compareValues(payload.productId.toString(), productId.toString())
         );
     }
 }
 
-app.get(`api/comments/`, async (req: Request, res: Response) => {
-    const comments: CommentCreatePayload[] = await loadComments();
+commentsRouter.get(`/`, async (req: Request, res: Response) => {
+    const [comments]: any = await connection?.query<ICommentEntity[]>("SELECT * FROM Comments");
     res.setHeader('Content-Type', 'application/json');
 
-    if (req.params.id) {
         res.send(comments);
-    } else {
-        res.status(404);
-        res.send(`Comment with id <${req.params.id}> is not found`)
-    }
 });
 
 // GET function to get a comment by id
-app.get(`${PATH}/:id`, async (req: Request<{id: string}>, res: Response) => {
-    const comments: IComment[] = await loadComments();
-    const id = req.params.id;
-
-    const targetComment: IComment | undefined = comments.find((comment: IComment) => id === comment.id.toString())
-
-    if (!targetComment) {
-        res.status(404);
-        res.send(`Comment with id <${req.params.id}> is not found`)
-    }
-
-    res.setHeader('Content-Type', 'application/json');
-    res.send(targetComment);
-});
+// app.get(`/:id`, async (req: Request<{id: string}>, res: Response) => {
+//     const comments: IComment[] = await loadComments();
+//     const id = req.params.id;
+//
+//     const targetComment: IComment | undefined = comments.find((comment: IComment) => id === comment.id.toString())
+//
+//     if (!targetComment) {
+//         res.status(404);
+//         res.send(`Comment with id <${req.params.id}> is not found`)
+//     }
+//
+//     res.setHeader('Content-Type', 'application/json');
+//     res.send(targetComment);
+// });
 
 type CommentValidator = (comment: CommentCreatePayload) => string | null;
 
@@ -120,7 +117,7 @@ const validateComment: CommentValidator = (body: CommentCreatePayload) => {
 // //     return null;
 }
 
-app.post(PATH, async (req: Request<{}, {}, CommentCreatePayload>, res: Response) => {
+app.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res: Response) => {
 
     const validationResult = validateComment(req.body);
 
@@ -157,7 +154,7 @@ app.post(PATH, async (req: Request<{}, {}, CommentCreatePayload>, res: Response)
     res.send(`Comment id:${id} has been added!`);
 });
 
-app.patch(PATH, async (req: Request<{}, {}, Partial<IComment>>, res: Response) => {
+app.patch('/', async (req: Request<{}, {}, Partial<IComment>>, res: Response) => {
     const comments: IComment[] = await loadComments();
     const targetCommentIndex = comments.findIndex(({id}) => id === req.body.id);
 
@@ -187,7 +184,7 @@ app.patch(PATH, async (req: Request<{}, {}, Partial<IComment>>, res: Response) =
     res.send(commentToCreate);
 })
 
-app.delete(`${PATH}/:id`, async (req: Request<{ id: string }>, res: Response) => {
+app.delete(`/:id`, async (req: Request<{ id: string }>, res: Response) => {
     const comments = await loadComments();
     const id = req.params.id;
 
@@ -213,6 +210,6 @@ app.delete(`${PATH}/:id`, async (req: Request<{ id: string }>, res: Response) =>
     res.send(`Comment with id ${id} is not found`);
 });
 
-app.listen(3002, () => {
-    console.log(`Server running on port 3002`);
-});
+// app.listen(3002, () => {
+//     console.log(`Server running on port 3002`);
+// });

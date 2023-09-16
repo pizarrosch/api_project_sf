@@ -17,6 +17,6 @@ app.get('/api/example', (req: Request, res: Response) => {
   res.send(html);
 });
 
-app.listen(3000, () => {
+app.listen(3003, () => {
   console.log('Server listening on port 3000');
 });
