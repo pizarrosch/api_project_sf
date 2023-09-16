@@ -52,10 +52,15 @@ export const checkCommentUniq = (payload: CommentCreatePayload, comments: IComme
 }
 
 commentsRouter.get(`/`, async (req: Request, res: Response) => {
-    const [comments]: any = await connection?.query<ICommentEntity[]>("SELECT * FROM Comments");
-    res.setHeader('Content-Type', 'application/json');
-
+    try {
+        const [comments]: any = await connection?.query<ICommentEntity[]>("SELECT * FROM Comments");
+        res.setHeader('Content-Type', 'application/json');
         res.send(comments);
+    } catch (error: any) {
+        console.debug(error.message);
+        res.status(500);
+        res.send('Something went wrong');
+    }
 });
 
 // GET function to get a comment by id
