@@ -3,6 +3,8 @@ import {readFile, writeFile} from "fs/promises";
 import { v4 as uuidv4 } from 'uuid';
 import {CommentCreatePayload, IComment, ICommentEntity} from "../types";
 import {connection} from "../../index";
+import {mapCommentEntity} from '../services/mapping';
+import {ResultSetHeader} from "mysql2";
 
 export const commentsRouter = Router();
 const app = express();
@@ -55,7 +57,7 @@ commentsRouter.get(`/`, async (req: Request, res: Response) => {
     try {
         const [comments]: any = await connection?.query<ICommentEntity[]>("SELECT * FROM Comments");
         res.setHeader('Content-Type', 'application/json');
-        res.send(comments);
+        res.send(mapCommentEntity(comments));
     } catch (error: any) {
         console.debug(error.message);
         res.status(500);
@@ -82,7 +84,7 @@ commentsRouter.get(`/`, async (req: Request, res: Response) => {
 type CommentValidator = (comment: CommentCreatePayload) => string | null;
 
 const validateComment: CommentValidator = (body: CommentCreatePayload) => {
-    const FIELDS = ['name', 'body', 'postId', 'email'];
+    const FIELDS = ['name', 'body', 'id', 'email'];
 
     if (!body || !Object.keys(body).length) {
         return 'Comment is absent or empty';
@@ -122,7 +124,22 @@ const validateComment: CommentValidator = (body: CommentCreatePayload) => {
 // //     return null;
 }
 
-app.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res: Response) => {
+const findDuplicateQuery = `
+        SELECT * FROM Comments c
+        WHERE LOWER(c.email) = ?
+        AND LOWER(c.name) = ?
+        AND LOWER(c.body) = ?
+        AND c.product_id = ?
+    `;
+
+const insertQuery = `
+        INSERT INTO Comments 
+        (comment_id, email, name, body, product_id)
+        VALUES 
+        (?, ?, ?, ?, ?)
+    `;
+
+commentsRouter.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res: Response) => {
 
     const validationResult = validateComment(req.body);
 
@@ -132,31 +149,35 @@ app.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res: Response) 
         return;
     }
 
-    const id = await uuidv4();
-    const idObj: {id: string} = {id: id};
-    const dataObj = req.body;
-    const concatObj = Object.assign({}, idObj, dataObj);
+    try {
+        const { name, email, body, productId } = req.body;
+        const [sameResult] = await connection!.query<ICommentEntity[]>(
+            findDuplicateQuery,
+            [email.toLowerCase(), name.toLowerCase(), body.toLowerCase(), productId]
+        );
 
-    const comments: IComment[] = await loadComments();
-    const isUniq = checkCommentUniq(req.body, comments);
+        console.log(sameResult[0]?.comment_id);
 
-    if (!isUniq) {
-        res.status(422);
-        res.send("Comment with the same fields already exists");
-        return;
-    }
+        if (sameResult.length) {
+            res.status(422);
+            res.send("Comment with the same fields already exists");
+            return;
+        }
 
-    comments.push(concatObj);
-    const saved =  await saveComments(comments)
+        const id = uuidv4();
 
-    if (!saved) {
-        res.status(500);
-        res.send("Server error. Comment has not been created");
-        return;
-    }
+        await connection!.query<ResultSetHeader>(
+            insertQuery,
+            [id, email, name, body, productId]
+        )
 
-    res.status(201);
-    res.send(`Comment id:${id} has been added!`);
+        res.status(201);
+        res.send(`Comment id:${id} has been added!`);
+    } catch(error: any) {
+           console.debug(error.message);
+           res.status(500);
+           res.send("Server error. Comment has not been created");
+       }
 });
 
 app.patch('/', async (req: Request<{}, {}, Partial<IComment>>, res: Response) => {
@@ -215,6 +236,6 @@ app.delete(`/:id`, async (req: Request<{ id: string }>, res: Response) => {
     res.send(`Comment with id ${id} is not found`);
 });
 
-// app.listen(3002, () => {
+// app.listen(3000, () => {
 //     console.log(`Server running on port 3002`);
 // });
