@@ -180,34 +180,56 @@ commentsRouter.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res:
        }
 });
 
-app.patch('/', async (req: Request<{}, {}, Partial<IComment>>, res: Response) => {
-    const comments: IComment[] = await loadComments();
-    const targetCommentIndex = comments.findIndex(({id}) => id === req.body.id);
+commentsRouter.patch('/', async (req: Request<{}, {}, Partial<IComment>>, res: Response) => {
+    try {
+        let updateQuery = "UPDATE comments SET ";
+        const valuesToUpdate = [];
 
-    if (targetCommentIndex > -1) {
-        comments[targetCommentIndex] = {...comments[targetCommentIndex], ...req.body};
-        await saveComments(comments);
-        res.status(200);
-        res.send(comments[targetCommentIndex]);
-        return;
+        ["name", "body", "email"].forEach(fieldName => {
+            if (req.body.hasOwnProperty(fieldName)) {
+                if (valuesToUpdate.length) {
+                    updateQuery += ", ";
+                }
+
+                updateQuery += `${fieldName} = ?`;
+                // @ts-ignore
+                valuesToUpdate.push(req.body[fieldName]);
+            }
+        });
+
+        updateQuery += " WHERE comment_id = ?";
+        valuesToUpdate.push(req.body.id);
+
+        const [info] = await connection!.query < ResultSetHeader > (updateQuery, valuesToUpdate);
+
+        if (info.affectedRows === 1) {
+            res.status(200);
+            res.end();
+            return;
+        }
+
+        const newComment = req.body as CommentCreatePayload;
+        const validationResult = validateComment(newComment);
+
+        if (validationResult) {
+            res.status(400);
+            res.send(validationResult);
+            return;
+        }
+
+        const id = uuidv4();
+        await connection!.query < ResultSetHeader > (
+            insertQuery,
+            [id, newComment.email, newComment.name, newComment.body, newComment.productId]
+        );
+
+        res.status(201);
+        res.send({ ...newComment, id })
+    } catch (error: any) {
+        console.log(error.message);
+        res.status(500);
+        res.send("Server error");
     }
-
-    const newComment = req.body as CommentCreatePayload;
-    const validationResult = validateComment(newComment);
-
-    if (validationResult) {
-        res.status(400);
-        res.send(validationResult);
-        return;
-    }
-
-    const id = uuidv4();
-    const commentToCreate = { ...newComment, id };
-    comments.push(commentToCreate);
-    await saveComments(comments);
-
-    res.status(201);
-    res.send(commentToCreate);
 })
 
 app.delete(`/:id`, async (req: Request<{ id: string }>, res: Response) => {
