@@ -66,20 +66,26 @@ commentsRouter.get(`/`, async (req: Request, res: Response) => {
 });
 
 // GET function to get a comment by id
-// app.get(`/:id`, async (req: Request<{id: string}>, res: Response) => {
-//     const comments: IComment[] = await loadComments();
-//     const id = req.params.id;
-//
-//     const targetComment: IComment | undefined = comments.find((comment: IComment) => id === comment.id.toString())
-//
-//     if (!targetComment) {
-//         res.status(404);
-//         res.send(`Comment with id <${req.params.id}> is not found`)
-//     }
-//
-//     res.setHeader('Content-Type', 'application/json');
-//     res.send(targetComment);
-// });
+commentsRouter.get(`/:id`, async (req: Request<{id: string}>, res: Response) => {
+    try {
+        const [rows] = await connection!.query<ICommentEntity[]>(
+            'SELECT * FROM Comments c WHERE comment_id = ?',
+            [req.params.id]
+        );
+
+        if (!rows[0]) {
+            res.status(404);
+            res.send(`Comment with id ${req.params.id} is not found`);
+            return;
+        }
+        res.setHeader('Content-Type', 'application/json');
+        res.send(mapCommentEntity(rows)[0]);
+    } catch(err: any) {
+        console.debug(err.message);
+        res.status(500);
+        res.send("Something went wrong");
+    }
+});
 
 type CommentValidator = (comment: CommentCreatePayload) => string | null;
 
@@ -232,30 +238,44 @@ commentsRouter.patch('/', async (req: Request<{}, {}, Partial<IComment>>, res: R
     }
 })
 
-app.delete(`/:id`, async (req: Request<{ id: string }>, res: Response) => {
-    const comments = await loadComments();
-    const id = req.params.id;
+commentsRouter.delete(`/:id`, async (req: Request<{ id: string }>, res: Response) => {
+    try {
+        const comments = await connection?.query<ICommentEntity[]>('SELECT * FROM Comments');
+        const { productId } = req.body;
+        const [sameResult] = await connection!.query<ICommentEntity[]>(
+            'SELECT * FROM Comments c WHERE c.comment_id = ?',
+            [req.body.id]
+        )
 
-    let removedComment: IComment | null = null;
-
-    const filteredComments = comments.filter((comment) => {
-        if (id === comment.id.toString()) {
-            removedComment = comment;
-            return false;
+        if (sameResult.length === 0) {
+            console.log(sameResult)
+            console.log('Hello')
         }
-
-        return true;
-    });
-
-    if (removedComment) {
-        await saveComments(filteredComments);
-        res.status(200);
-        res.send(removedComment);
-        return;
+    } catch (error: any) {
+        res.status(400);
     }
 
-    res.status(404);
-    res.send(`Comment with id ${id} is not found`);
+
+    // let removedComment: IComment | null = null;
+    //
+    // const filteredComments = comments.filter((comment) => {
+    //     if (id === comment.id.toString()) {
+    //         removedComment = comment;
+    //         return false;
+    //     }
+
+        // return true;
+    // });
+
+    // if (removedComment) {
+    //     await saveComments(filteredComments);
+    //     res.status(200);
+    //     res.send(removedComment);
+    //     return;
+    // }
+    //
+    // res.status(404);
+    // res.send(`Comment with id ${id} is not found`);
 });
 
 // app.listen(3000, () => {
