@@ -242,17 +242,22 @@ commentsRouter.delete(`/:id`, async (req: Request<{ id: string }>, res: Response
     try {
         const comments = await connection?.query<ICommentEntity[]>('SELECT * FROM Comments');
         const { productId } = req.body;
-        const [sameResult] = await connection!.query<ICommentEntity[]>(
-            'SELECT * FROM Comments c WHERE c.comment_id = ?',
-            [req.body.id]
+        const [sameResult] = await connection!.query<ResultSetHeader>(
+            'DELETE FROM Comments c WHERE c.comment_id = ?',
+            [req.params.id]
         )
 
-        if (sameResult.length === 0) {
-            console.log(sameResult)
-            console.log('Hello')
+        if (sameResult.affectedRows === 0) {
+           res.status(400);
+           res.send(`No comment with id ${req.params.id} is found`);
         }
+        res.status(200);
+        res.send(`The comment with id${req.params.id} has been deleted`);
+        res.end();
     } catch (error: any) {
-        res.status(400);
+        console.debug(error.message);
+        res.status(500);
+        res.send("Something went wrong");
     }
 
 
