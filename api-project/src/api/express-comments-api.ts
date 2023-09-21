@@ -3,7 +3,7 @@ import {readFile, writeFile} from "fs/promises";
 import { v4 as uuidv4 } from 'uuid';
 import {CommentCreatePayload, IComment, ICommentEntity} from "../types";
 import {connection} from "../../index";
-import {mapCommentEntity} from '../services/mapping';
+import {mapCommentsEntity} from '../services/mapping';
 import {ResultSetHeader} from "mysql2";
 
 export const commentsRouter = Router();
@@ -57,7 +57,7 @@ commentsRouter.get(`/`, async (req: Request, res: Response) => {
     try {
         const [comments]: any = await connection?.query<ICommentEntity[]>("SELECT * FROM Comments");
         res.setHeader('Content-Type', 'application/json');
-        res.send(mapCommentEntity(comments));
+        res.send(mapCommentsEntity(comments));
     } catch (error: any) {
         console.debug(error.message);
         res.status(500);
@@ -79,7 +79,7 @@ commentsRouter.get(`/:id`, async (req: Request<{id: string}>, res: Response) => 
             return;
         }
         res.setHeader('Content-Type', 'application/json');
-        res.send(mapCommentEntity(rows)[0]);
+        res.send(mapCommentsEntity(rows)[0]);
     } catch(err: any) {
         console.debug(err.message);
         res.status(500);

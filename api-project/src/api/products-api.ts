@@ -1,5 +1,5 @@
 import { Request, Response, Router } from "express";
-import {mapProductsEntity} from "../services/mapping";
+import {mapCommentsEntity, mapProductsEntity} from "../services/mapping";
 import {connection} from "../../index";
 import {IProductEntity, ICommentEntity} from "../types";
 import {enhanceProductsComments} from "../helpers";
@@ -14,20 +14,49 @@ const throwServerError = (res: Response, e: Error) => {
 
 productsRouter.get('/', async (req: Request, res: Response) => {
     try {
-        const [productRows] = await connection.query < IProductEntity[] > (
+        const [productRows] = await connection!.query < IProductEntity[] > (
             "SELECT * FROM products"
         );
 
-        const [commentRows] = await connection.query < ICommentEntity[] > (
-            "SELECT * FROM comments"
+        const [commentRows] = await connection!.query < ICommentEntity[] > (
+            "SELECT * FROM Comments"
         );
 
         const products = mapProductsEntity(productRows);
         const result = enhanceProductsComments(products, commentRows);
 
         res.send(result);
+    } catch (err: any) {
+        throwServerError(res, err);
+    }
+});
 
-        res.send(mapProductsEntity(products));
+productsRouter.get('/:id', async (req: Request<{id: string}>, res: Response) => {
+    try {
+        const [products] = await connection!.query<IProductEntity[]>(
+            'SELECT * FROM products c WHERE product_id = ?',
+            [req.params.id]
+        );
+
+        if (!products[0]) {
+            res.status(404);
+            res.send(`Comment with id ${req.params.id} is not found`);
+            return;
+        }
+
+        const [comments] = await connection!.query<ICommentEntity[]>(
+            'SELECT * FROM Comments c WHERE product_id = ?',
+            [req.params.id]
+        );
+
+        const product = mapProductsEntity(products)[0];
+
+        if (comments.length) {
+            product.comments = mapCommentsEntity(comments);
+        }
+
+        res.send(product);
+
     } catch (err: any) {
         throwServerError(res, err);
     }

@@ -7,7 +7,7 @@ export function initServer(): Express {
     app.use(jsonMiddleware);
 
     app.listen(3005, () => {
-        console.log(`Server running on port 3000`);
+        console.log(`Server running on port 3005`);
     });
 
     return app;

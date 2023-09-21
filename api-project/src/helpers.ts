@@ -14,7 +14,7 @@ export const enhanceProductsComments = (
         }
 
         const list = commentsByProductId.get(comment.productId);
-        commentsByProductId.set(comment.productId, [...list, comment]);
+        commentsByProductId.set(comment.productId, [...list!, comment]);
     }
 
     for (let product of products) {
