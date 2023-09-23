@@ -1,8 +1,11 @@
 import { Request, Response, Router } from "express";
 import {mapCommentsEntity, mapProductsEntity} from "../services/mapping";
 import {connection} from "../../index";
-import {IProductEntity, ICommentEntity} from "../types";
-import {enhanceProductsComments} from "../helpers";
+import {IProductEntity, ICommentEntity, IProductSearchFilter, ProductCreatePayload} from "../types";
+import {enhanceProductsComments, getProductsFilterQuery} from "../helpers";
+import {ResultSetHeader} from "mysql2";
+import {INSERT_PRODUCT_QUERY} from "../queries";
+import { v4 as uuidv4 } from 'uuid';
 
 export const productsRouter = Router();
 
@@ -17,6 +20,30 @@ productsRouter.get('/', async (req: Request, res: Response) => {
         const [productRows] = await connection!.query < IProductEntity[] > (
             "SELECT * FROM products"
         );
+
+        const [commentRows] = await connection!.query < ICommentEntity[] > (
+            "SELECT * FROM Comments"
+        );
+
+        const products = mapProductsEntity(productRows);
+        const result = enhanceProductsComments(products, commentRows);
+
+        res.send(result);
+    } catch (err: any) {
+        throwServerError(res, err);
+    }
+});
+
+productsRouter.get('/search', async (req: Request<{}, {}, {}, IProductSearchFilter>, res: Response) => {
+    try {
+        const [query, values] = getProductsFilterQuery(req.query);
+        const [productRows] = await connection!.query<IProductEntity[]>(query, values);
+
+        if (!productRows?.length) {
+            res.status(404);
+            res.send(`Products are not found`);
+            return;
+        }
 
         const [commentRows] = await connection!.query < ICommentEntity[] > (
             "SELECT * FROM Comments"
@@ -61,3 +88,20 @@ productsRouter.get('/:id', async (req: Request<{id: string}>, res: Response) => 
         throwServerError(res, err);
     }
 });
+
+productsRouter.post('/', async (req: Request<{}, {}, ProductCreatePayload>, res: Response) => {
+    try {
+        const {title, description, price} = req.body;
+        const id = uuidv4();
+        await connection?.query<ResultSetHeader>(
+            INSERT_PRODUCT_QUERY,
+            [id, title || null, description || 0, price || 0]
+        )
+
+        res.status(200);
+        res.send(`The product with the id ${id} has been added to your list`);
+    } catch (err: any) {
+        throwServerError(res, err);
+    }
+}
+);

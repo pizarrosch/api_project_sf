@@ -5,6 +5,7 @@ import {CommentCreatePayload, IComment, ICommentEntity} from "../types";
 import {connection} from "../../index";
 import {mapCommentsEntity} from '../services/mapping';
 import {ResultSetHeader} from "mysql2";
+import {FIND_DUPLICATE_QUERY, INSERT_COMMENT_QUERY} from "../queries";
 
 export const commentsRouter = Router();
 const app = express();
@@ -130,21 +131,6 @@ const validateComment: CommentValidator = (body: CommentCreatePayload) => {
 // //     return null;
 }
 
-const findDuplicateQuery = `
-        SELECT * FROM Comments c
-        WHERE LOWER(c.email) = ?
-        AND LOWER(c.name) = ?
-        AND LOWER(c.body) = ?
-        AND c.product_id = ?
-    `;
-
-const insertQuery = `
-        INSERT INTO Comments 
-        (comment_id, email, name, body, product_id)
-        VALUES 
-        (?, ?, ?, ?, ?)
-    `;
-
 commentsRouter.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res: Response) => {
 
     const validationResult = validateComment(req.body);
@@ -158,7 +144,7 @@ commentsRouter.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res:
     try {
         const { name, email, body, productId } = req.body;
         const [sameResult] = await connection!.query<ICommentEntity[]>(
-            findDuplicateQuery,
+            FIND_DUPLICATE_QUERY,
             [email.toLowerCase(), name.toLowerCase(), body.toLowerCase(), productId]
         );
 
@@ -173,7 +159,7 @@ commentsRouter.post('/', async (req: Request<{}, {}, CommentCreatePayload>, res:
         const id = uuidv4();
 
         await connection!.query<ResultSetHeader>(
-            insertQuery,
+            INSERT_COMMENT_QUERY,
             [id, email, name, body, productId]
         )
 
@@ -225,7 +211,7 @@ commentsRouter.patch('/', async (req: Request<{}, {}, Partial<IComment>>, res: R
 
         const id = uuidv4();
         await connection!.query < ResultSetHeader > (
-            insertQuery,
+            INSERT_COMMENT_QUERY,
             [id, newComment.email, newComment.name, newComment.body, newComment.productId]
         );
 

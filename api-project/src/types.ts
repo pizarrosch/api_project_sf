@@ -16,12 +16,21 @@ export interface IProduct {
     comments?: IComment[]
 }
 
+export type ProductCreatePayload = Omit<IProduct, "id" | "comments">;
+
 export interface ICommentEntity extends RowDataPacket {
     comment_id: string;
     name: string;
     email: string;
     body: string;
     product_id: string;
+}
+
+export interface IProductSearchFilter {
+    title?: string;
+    description?: string;
+    priceFrom?: number;
+    priceTo?: number;
 }
 
 export interface IProductEntity extends IProduct, RowDataPacket {

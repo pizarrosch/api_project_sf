@@ -1,4 +1,4 @@
-import {IProduct, ICommentEntity, IComment} from "./types";
+import {IProduct, ICommentEntity, IComment, IProductSearchFilter} from "./types";
 import {mapCommentEntity} from "./services/mapping";
 
 export const enhanceProductsComments = (
@@ -24,4 +24,39 @@ export const enhanceProductsComments = (
     }
 
     return products;
+}
+
+export const getProductsFilterQuery = (
+    filter: IProductSearchFilter
+): [string , (string | number)[]] => {
+    const { title, description, priceFrom, priceTo } = filter;
+
+    let query: string | number = "SELECT * FROM products WHERE ";
+    const values: (string | number)[] = []
+
+    if (title) {
+        query += "title LIKE ? ";
+        values.push(`%${title}%`);
+    }
+
+    if (description) {
+        if (values.length) {
+            query += " OR ";
+        }
+
+        query += "description LIKE ? ";
+        values.push(`%${description}%`);
+    }
+
+    if (priceFrom || priceTo) {
+        if (values.length) {
+            query += " OR ";
+        }
+
+        query += `(price > ? AND price < ?)`;
+        values.push(priceFrom || 0);
+        values.push(priceTo || 999999);
+    }
+
+    return [query, values];
 }
