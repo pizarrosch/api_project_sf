@@ -1,7 +1,7 @@
 import {IProduct, ICommentEntity, IComment, IProductSearchFilter, IImages, IImageEntity} from "./types";
 import {mapCommentEntity, mapImageEntity} from "./services/mapping";
 
-export const enhanceProductsComments = (
+export const enhanceProductsCommentsAndImages = (
     products: IProduct[],
     commentRows: ICommentEntity[],
     imagesRows: IImageEntity[]
@@ -30,11 +30,18 @@ export const enhanceProductsComments = (
     }
 
     for (let product of products) {
-        if (commentsByProductId.has(product.id)) {
-            product.comments = commentsByProductId.get(product.id);
-        }
-        if (imagesByProductId.has(product.id)) {
-            product.images = imagesByProductId.get(product.id);
+        for (let image of imagesRows) {
+            if (commentsByProductId.has(product.id)) {
+                product.comments = commentsByProductId.get(product.id);
+            }
+
+            if (imagesByProductId.has(product.id)) {
+                product.images = imagesByProductId.get(product.id);
+            }
+
+            if (image.product_id === product.id && image.main === 1) {
+                product.thumbnail = image.url;
+            }
         }
     }
 

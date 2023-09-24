@@ -2,7 +2,7 @@ import { Request, Response, Router } from "express";
 import {mapCommentsEntity, mapImagesEntity, mapProductsEntity} from "../services/mapping";
 import {connection} from "../../index";
 import {IProductEntity, ICommentEntity, IProductSearchFilter, ProductCreatePayload, IImageEntity} from "../types";
-import {enhanceProductsComments, getProductsFilterQuery} from "../helpers";
+import {enhanceProductsCommentsAndImages, getProductsFilterQuery} from "../helpers";
 import {ResultSetHeader} from "mysql2";
 import {INSERT_PRODUCT_QUERY} from "../queries";
 import { v4 as uuidv4 } from 'uuid';
@@ -30,7 +30,7 @@ productsRouter.get('/', async (req: Request, res: Response) => {
         );
 
         const products = mapProductsEntity(productRows);
-        const result = enhanceProductsComments(products, commentRows, imagesRows);
+        const result = enhanceProductsCommentsAndImages(products, commentRows, imagesRows);
 
         res.send(result);
     } catch (err: any) {
@@ -58,7 +58,7 @@ productsRouter.get('/search', async (req: Request<{}, {}, {}, IProductSearchFilt
         );
 
         const products = mapProductsEntity(productRows);
-        const result = enhanceProductsComments(products, commentRows, imagesRows);
+        const result = enhanceProductsCommentsAndImages(products, commentRows, imagesRows);
 
         res.send(result);
     } catch (err: any) {

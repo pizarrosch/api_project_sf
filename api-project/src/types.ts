@@ -11,7 +11,8 @@ export interface IComment {
 export interface IImages {
     id: string,
     productId: string,
-    url: string
+    url: string,
+    main: number
 }
 
 export interface IProduct {
@@ -20,7 +21,8 @@ export interface IProduct {
     description: string;
     price: number;
     comments?: IComment[],
-    images?: IImages[]
+    images?: IImages[],
+    thumbnail?: string
 }
 
 export type ProductCreatePayload = Omit<IProduct, "id" | "comments">;
@@ -47,7 +49,8 @@ export interface IProductEntity extends IProduct, RowDataPacket {
 export interface IImageEntity extends RowDataPacket {
     image_id: string;
     product_id: string,
-    url: string
+    url: string,
+    main: number
 }
 
 export type CommentCreatePayload = Omit<IComment, "id">;
