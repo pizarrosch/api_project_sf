@@ -1,7 +1,7 @@
 import { Request, Response, Router } from "express";
-import {mapCommentsEntity, mapProductsEntity} from "../services/mapping";
+import {mapCommentsEntity, mapImagesEntity, mapProductsEntity} from "../services/mapping";
 import {connection} from "../../index";
-import {IProductEntity, ICommentEntity, IProductSearchFilter, ProductCreatePayload} from "../types";
+import {IProductEntity, ICommentEntity, IProductSearchFilter, ProductCreatePayload, IImageEntity} from "../types";
 import {enhanceProductsComments, getProductsFilterQuery} from "../helpers";
 import {ResultSetHeader} from "mysql2";
 import {INSERT_PRODUCT_QUERY} from "../queries";
@@ -25,8 +25,12 @@ productsRouter.get('/', async (req: Request, res: Response) => {
             "SELECT * FROM Comments"
         );
 
+        const [imagesRows] = await connection!.query < IImageEntity[] > (
+            "SELECT * FROM images"
+        );
+
         const products = mapProductsEntity(productRows);
-        const result = enhanceProductsComments(products, commentRows);
+        const result = enhanceProductsComments(products, commentRows, imagesRows);
 
         res.send(result);
     } catch (err: any) {
@@ -49,8 +53,12 @@ productsRouter.get('/search', async (req: Request<{}, {}, {}, IProductSearchFilt
             "SELECT * FROM Comments"
         );
 
+        const [imagesRows] = await connection!.query < IImageEntity[] > (
+            "SELECT * FROM images"
+        );
+
         const products = mapProductsEntity(productRows);
-        const result = enhanceProductsComments(products, commentRows);
+        const result = enhanceProductsComments(products, commentRows, imagesRows);
 
         res.send(result);
     } catch (err: any) {
@@ -76,10 +84,19 @@ productsRouter.get('/:id', async (req: Request<{id: string}>, res: Response) => 
             [req.params.id]
         );
 
+        const [images] = await connection!.query<IImageEntity[]>(
+            'SELECT * FROM images i WHERE product_id = ?',
+            [req.params.id]
+        );
+
         const product = mapProductsEntity(products)[0];
 
         if (comments.length) {
             product.comments = mapCommentsEntity(comments);
+        }
+
+        if (images.length) {
+            product.images = mapImagesEntity(images);
         }
 
         res.send(product);
@@ -95,7 +112,7 @@ productsRouter.post('/', async (req: Request<{}, {}, ProductCreatePayload>, res:
         const id = uuidv4();
         await connection?.query<ResultSetHeader>(
             INSERT_PRODUCT_QUERY,
-            [id, title || null, description || 0, price || 0]
+            [id, title || null, description || null, price || null]
         )
 
         res.status(200);
@@ -105,3 +122,26 @@ productsRouter.post('/', async (req: Request<{}, {}, ProductCreatePayload>, res:
     }
 }
 );
+
+productsRouter.delete('/:id', async (
+    req: Request<{ id: string }>,
+    res: Response
+) => {
+    try {
+        const [info] = await connection!.query < ResultSetHeader > (
+            "DELETE FROM products WHERE product_id = ?",
+            [req.params.id]
+        );
+
+        if (info.affectedRows === 0) {
+            res.status(404);
+            res.send(`Product with id ${req.params.id} is not found`);
+            return;
+        }
+
+        res.status(200);
+        res.end();
+    } catch (err: any) {
+        throwServerError(res, err);
+    }
+});

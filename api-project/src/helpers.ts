@@ -1,11 +1,13 @@
-import {IProduct, ICommentEntity, IComment, IProductSearchFilter} from "./types";
-import {mapCommentEntity} from "./services/mapping";
+import {IProduct, ICommentEntity, IComment, IProductSearchFilter, IImages, IImageEntity} from "./types";
+import {mapCommentEntity, mapImageEntity} from "./services/mapping";
 
 export const enhanceProductsComments = (
     products: IProduct[],
-    commentRows: ICommentEntity[]
+    commentRows: ICommentEntity[],
+    imagesRows: IImageEntity[]
 ): IProduct[] => {
     const commentsByProductId = new Map < string, IComment[]> ();
+    const imagesByProductId = new Map < string, IImages[]> ();
 
     for (let commentEntity of commentRows) {
         const comment = mapCommentEntity(commentEntity);
@@ -17,9 +19,22 @@ export const enhanceProductsComments = (
         commentsByProductId.set(comment.productId, [...list!, comment]);
     }
 
+    for (let imageEntity of imagesRows) {
+        const image = mapImageEntity(imageEntity);
+        if (!imagesByProductId.has(image.productId)) {
+            imagesByProductId.set(image.productId, []);
+        }
+
+        const list = imagesByProductId.get(image.productId);
+        imagesByProductId.set(image.productId, [...list!, image]);
+    }
+
     for (let product of products) {
         if (commentsByProductId.has(product.id)) {
             product.comments = commentsByProductId.get(product.id);
+        }
+        if (imagesByProductId.has(product.id)) {
+            product.images = imagesByProductId.get(product.id);
         }
     }
 
