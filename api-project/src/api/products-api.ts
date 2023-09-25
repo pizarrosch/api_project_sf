@@ -1,10 +1,17 @@
 import { Request, Response, Router } from "express";
 import {mapCommentsEntity, mapImagesEntity, mapProductsEntity} from "../services/mapping";
 import {connection} from "../../index";
-import {IProductEntity, ICommentEntity, IProductSearchFilter, ProductCreatePayload, IImageEntity} from "../types";
+import {
+    IProductEntity,
+    ICommentEntity,
+    IProductSearchFilter,
+    ProductCreatePayload,
+    IImageEntity,
+    ImageCreatePayload
+} from "../types";
 import {enhanceProductsCommentsAndImages, getProductsFilterQuery} from "../helpers";
 import {ResultSetHeader} from "mysql2";
-import {INSERT_PRODUCT_QUERY} from "../queries";
+import {INSERT_IMAGE_QUERY, INSERT_PRODUCT_QUERY} from "../queries";
 import { v4 as uuidv4 } from 'uuid';
 
 export const productsRouter = Router();
@@ -108,11 +115,16 @@ productsRouter.get('/:id', async (req: Request<{id: string}>, res: Response) => 
 
 productsRouter.post('/', async (req: Request<{}, {}, ProductCreatePayload>, res: Response) => {
     try {
-        const {title, description, price} = req.body;
+        const {title, description, price, images} = req.body;
         const id = uuidv4();
         await connection?.query<ResultSetHeader>(
             INSERT_PRODUCT_QUERY,
             [id, title || null, description || null, price || null]
+        )
+
+        await connection?.query<ResultSetHeader>(
+            INSERT_IMAGE_QUERY,
+            [id, images![0].productId || null, images![0].url || null, images![0].main]
         )
 
         res.status(200);
@@ -128,6 +140,16 @@ productsRouter.delete('/:id', async (
     res: Response
 ) => {
     try {
+        const [deletedImage] = await connection!.query < ResultSetHeader > (
+            "DELETE FROM images WHERE product_id = ?",
+            [req.params.id]
+        );
+
+        const [deletedComment] = await connection!.query < ResultSetHeader > (
+            "DELETE FROM Comments WHERE product_id = ?",
+            [req.params.id]
+        );
+
         const [info] = await connection!.query < ResultSetHeader > (
             "DELETE FROM products WHERE product_id = ?",
             [req.params.id]

@@ -19,3 +19,10 @@ export const  INSERT_COMMENT_QUERY = `
         VALUES 
         (?, ?, ?, ?, ?)
     `;
+
+export const  INSERT_IMAGE_QUERY = `
+        INSERT INTO images 
+        (image_id, product_id, url, main)
+        VALUES 
+        (?, ?, ?, ?)
+    `;
